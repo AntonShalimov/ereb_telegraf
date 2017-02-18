@@ -84,9 +84,12 @@ func (g *ereb) Gather(acc telegraf.Accumulator) error {
 
 	endpoints := make([]string, 0, len(g.Servers))
 
+	trailingSlash := "/"
 	for _, endpoint := range g.Servers {
-
 		if strings.HasPrefix(endpoint, "http") {
+			if strings.HasSuffix(endpoint, trailingSlash) {
+				endpoint = strings.TrimRight(endpoint, trailingSlash)
+			}
 			endpoints = append(endpoints, endpoint)
 			continue
 		}
@@ -98,7 +101,9 @@ func (g *ereb) Gather(acc telegraf.Accumulator) error {
 		for _, f := range gatherFunctions {
 			go func(serv string, gf gatherFunc) {
 				defer wg.Done()
-				gf(g, server, acc)
+				if err := gf(g, server, acc); err != nil {
+					acc.AddError(err)
+				}
 			}(server, f)
 		}
 	}
@@ -109,7 +114,6 @@ func (g *ereb) Gather(acc telegraf.Accumulator) error {
 
 func gatherStatus(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 	erebStatus := &ErebStatus{}
-
 	err := g.getJson(serverAddr + "/status", &erebStatus)
 	if err != nil {
 		return err
@@ -139,9 +143,8 @@ func gatherStatus(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 	now := time.Now()
-
 	erebTasks := ErebTasks{}
-	err := g.getJson(serverAddr + "/status", &erebTasks)
+	err := g.getJson(serverAddr + "/tasks", &erebTasks)
 	if err != nil {
 		return err
 	}
@@ -155,6 +158,13 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 		}
 
 		exitCodes := task.Stats.ExitCodes
+
+		// If we don't have stats for this task,
+		// skip adding it's point
+		if len(exitCodes) == 0 {
+			continue
+		}
+
 		taskTimeout, _ := strconv.Atoi(task.Timeout)
 		fields := map[string]interface{}{
 			"enabled":        task.Enabled,

@@ -12,10 +12,12 @@ import (
 	"net/url"
 	"fmt"
 	"strconv"
+	"log"
 )
 
 type ereb struct {
 	Servers []string
+	debug_mode bool
 	client *http.Client
 }
 
@@ -68,6 +70,13 @@ const sampleConfig = `
   # servers = ["http://localhost:8888"]
 `
 
+func (g *ereb) debug(logString interface{}) {
+	if g.debug_mode {
+		log.Printf("%v\n", logString)
+	}
+}
+
+
 func (g *ereb) SampleConfig() string {
 	return sampleConfig
 }
@@ -95,13 +104,18 @@ func (g *ereb) Gather(acc telegraf.Accumulator) error {
 		}
 	}
 
+
+
 	var wg sync.WaitGroup
 	wg.Add(len(endpoints) * len(gatherFunctions))
+	g.debug("Iterating endpoints")
+	g.debug(endpoints)
 	for _, server := range endpoints {
 		for _, f := range gatherFunctions {
 			go func(serv string, gf gatherFunc) {
 				defer wg.Done()
-				if err := gf(g, server, acc); err != nil {
+				if err := gf(g, serv, acc); err != nil {
+					g.debug(err.Error())
 					acc.AddError(err)
 				}
 			}(server, f)
@@ -114,6 +128,7 @@ func (g *ereb) Gather(acc telegraf.Accumulator) error {
 
 func gatherStatus(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 	erebStatus := &ErebStatus{}
+	g.debug("Gathering status for " + serverAddr)
 	err := g.getJson(serverAddr + "/status", &erebStatus)
 	if err != nil {
 		return err
@@ -142,6 +157,7 @@ func gatherStatus(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 
 func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
+	g.debug("Gathering tasks for " + serverAddr)
 	now := time.Now()
 	erebTasks := ErebTasks{}
 	err := g.getJson(serverAddr + "/tasks", &erebTasks)

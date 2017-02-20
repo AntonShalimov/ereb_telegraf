@@ -170,7 +170,7 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 	for _, task := range erebTasks {
 		tags := map[string]string{
 			"hostname": u.Host,
-			"task_name": task.Name,
+			"task_tag": task.Name,
 		}
 
 		exitCodes := task.Stats.ExitCodes
@@ -183,6 +183,7 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 		taskTimeout, _ := strconv.Atoi(task.Timeout)
 		fields := map[string]interface{}{
+			"task_name":      task.Name,
 			"enabled":        task.Enabled,
 			"success_count":  task.Stats.Success,
 			"errors_count":   task.Stats.Error,
@@ -190,12 +191,11 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 			"max_duration":   task.Stats.DurationMax,
 			"min_duration":   task.Stats.DurationMin,
 			"timeout":        taskTimeout,
-			"last_exit_code": exitCodes[len(exitCodes) - 1],
+			"last_exit_code": exitCodes[len(exitCodes)-1],
 		}
 
 		acc.AddFields("ereb_tasks", fields, tags, now)
 	}
-
 
 	return err
 }

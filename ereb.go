@@ -174,14 +174,18 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 		}
 
 		exitCodes := task.Stats.ExitCodes
+		var lastExitCode string
 
 		// If we don't have stats for this task,
-		// skip adding it's point
+		// maybe it has been disabled
 		if len(exitCodes) == 0 {
-			continue
+			lastExitCode = "-1"
+		} else {
+			lastExitCode = exitCodes[len(exitCodes)-1]
 		}
 
 		taskTimeout, _ := strconv.Atoi(task.Timeout)
+
 		fields := map[string]interface{}{
 			"task_name":      task.Name,
 			"enabled":        task.Enabled,
@@ -191,7 +195,7 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 			"max_duration":   task.Stats.DurationMax,
 			"min_duration":   task.Stats.DurationMin,
 			"timeout":        taskTimeout,
-			"last_exit_code": exitCodes[len(exitCodes)-1],
+			"last_exit_code": lastExitCode,
 		}
 
 		acc.AddFields("ereb_tasks", fields, tags, now)

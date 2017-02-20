@@ -136,12 +136,12 @@ func gatherStatus(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 	u, err := url.Parse(serverAddr)
 
-	tags := map[string]string{"host": u.Host}
+	tags := map[string]string{"hostname": u.Host}
 
 	now := time.Now()
-	is_running := false
+	is_running := 0
 	if erebStatus.State == "running" {
-		is_running = true
+		is_running = 1
 	}
 
 	fields := map[string]interface{}{
@@ -169,7 +169,7 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 	for _, task := range erebTasks {
 		tags := map[string]string{
-			"host": u.Host,
+			"hostname": u.Host,
 			"task_name": task.Name,
 		}
 

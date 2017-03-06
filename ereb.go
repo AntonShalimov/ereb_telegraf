@@ -167,7 +167,9 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 	u, err := url.Parse(serverAddr)
 
+	g.debug(len(erebTasks))
 	for _, task := range erebTasks {
+		g.debug(task)
 		tags := map[string]string{
 			"hostname": u.Host,
 			"task_tag": task.Name,
@@ -176,13 +178,26 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 		exitCodes := task.Stats.ExitCodes
 		var lastExitCode string
 
+		lastErrorsCount := 0
+
 		// If we don't have stats for this task,
 		// maybe it has been disabled
 		if len(exitCodes) == 0 {
 			lastExitCode = "-1"
 		} else {
 			lastExitCode = exitCodes[len(exitCodes)-1]
+
+			// Count non-zero exit codes
+			for _, exitCode := range exitCodes {
+				intExitCode, _ := strconv.Atoi(exitCode)
+
+				if intExitCode > 0 {
+					lastErrorsCount++
+				}
+			}
 		}
+
+
 
 		taskTimeout, _ := strconv.Atoi(task.Timeout)
 
@@ -196,6 +211,7 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 			"min_duration":   task.Stats.DurationMin,
 			"timeout":        taskTimeout,
 			"last_exit_code": lastExitCode,
+			"last_errors_count": lastErrorsCount,
 		}
 
 		acc.AddFields("ereb_tasks", fields, tags, now)
@@ -208,10 +224,10 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 func (g *ereb) getJson(requestUrl string, target interface{}) error {
 	if g.client == nil {
-		tr := &http.Transport{ResponseHeaderTimeout: time.Duration(3 * time.Second)}
+		tr := &http.Transport{ResponseHeaderTimeout: time.Duration(30 * time.Second)}
 		client := &http.Client{
 			Transport: tr,
-			Timeout:   time.Duration(4 * time.Second),
+			Timeout:   time.Duration(30 * time.Second),
 		}
 		g.client = client
 	}
@@ -237,6 +253,7 @@ func (g *ereb) getJson(requestUrl string, target interface{}) error {
 	}
 
 	defer res.Body.Close()
+
 
 	json.NewDecoder(res.Body).Decode(target)
 

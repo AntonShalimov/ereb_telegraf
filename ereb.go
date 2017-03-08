@@ -189,11 +189,16 @@ func gatherTasks(g *ereb, serverAddr string, acc telegraf.Accumulator) error {
 
 			// Count non-zero exit codes
 			for _, exitCode := range exitCodes {
-				intExitCode, _ := strconv.Atoi(exitCode)
-
-				if intExitCode > 0 {
-					lastErrorsCount++
+				if exitCode != "None" {
+					intExitCode, _ := strconv.Atoi(exitCode)
+					g.debug(task.Name + ", " + exitCode + ", " + strconv.Itoa(intExitCode))
+					if intExitCode > 0 {
+						lastErrorsCount++
+					} else if intExitCode == 0 {
+						lastErrorsCount = 0
+					}
 				}
+
 			}
 		}
 
